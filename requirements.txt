@@ -1,0 +1,11 @@
+transformers
+torch
+torchvision
+torchaudio
+pandas
+scikit-learn
+datasets
+fastapi
+uvicorn[standard]
+python-multipart
+PyMuPDF

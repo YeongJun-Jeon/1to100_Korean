@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+VENV/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Data and models
+data/
+models/
+aws/
+
+# Notebook checkpoints
+.ipynb_checkpoints
