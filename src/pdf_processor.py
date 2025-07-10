@@ -39,8 +39,11 @@ def convert_pdfs_to_pngs():
         for page_num in range(len(pdf_document)):
             page = pdf_document.load_page(page_num)
             
-            # Render page to an image (pixmap)
-            pix = page.get_pixmap()
+            # Render page to an image (pixmap) with higher DPI
+            # 400 DPI (400 / 72 = 5.55...)
+            zoom = 400 / 72 # 원하는 DPI / 기본 DPI (72)
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat) # DPI 설정 적용
             
             # Define the output image path
             output_image_path = os.path.join(output_dir, f"{base_filename}_page_{page_num + 1}.png")
