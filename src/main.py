@@ -1,16 +1,17 @@
 import os
 from typing import Dict, Any
 
-from annotation_processor import process_annotations_from_json
-from layout_organizer import shuffle_logical_units
-from pdf_recombiner import recombine_pdf
+from .annotation_processor import process_annotations_from_json
+from .layout_organizer import shuffle_logical_units
+from .pdf_recombiner import recombine_pdf
+from .config import PROJECT_ROOT, DPI, PDF_STANDARD_DPI
 
 # --- Configuration ---
 CONFIG = {
-    # --- 기본 파일 경로 설정 ---
-    "json_input_path": "C:/Users/CUBOX/1to100/data/processed/sample_annotations.json",
-    "base_cropped_output_dir": "C:/Users/CUBOX/1to100/data/processed/cropped_components",
-    "recombined_pdf_output_path": "C:/Users/CUBOX/1to100/data/processed/recombined_output.pdf",
+    # --- 기본 파일 경로 설정 (PROJECT_ROOT를 사용하여 동적으로 생성) ---
+    "json_input_path": os.path.join(PROJECT_ROOT, "data", "processed", "sample_annotations.json"),
+    "base_cropped_output_dir": os.path.join(PROJECT_ROOT, "data", "processed", "cropped_components"),
+    "recombined_pdf_output_path": os.path.join(PROJECT_ROOT, "data", "processed", "recombined_output.pdf"),
     
     # --- 페이지 레이아웃 설정 ---
     "page_size": (842, 1191),        # B4 용지 크기 (가로, 세로). 포인트(pt) 단위.
@@ -26,8 +27,8 @@ CONFIG = {
     "column_line_width": 0.5,        # 두 열 사이의 세로 구분선 두께 (0이면 보이지 않음)
     
     # --- 이미지 및 텍스트 스케일 설정 ---
-    # 원본 이미지(400DPI)를 PDF의 포인트(72DPI) 단위에 맞게 축소하는 비율
-    "image_scale_factor": 1.0 / (400 / 72), 
+    # 원본 이미지(DPI)를 PDF의 포인트(PDF_STANDARD_DPI) 단위에 맞게 축소하는 비율
+    "image_scale_factor": 1.0 / (DPI / PDF_STANDARD_DPI), 
     
     # --- 문제 번호(Question Number) 설정 ---
     "start_question_number": 1,

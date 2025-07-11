@@ -44,4 +44,7 @@ LEARNING_RATE = 5e-5
 NUM_EPOCHS = 5
 
 # --- Post-processing ---
-DPI = 300 # Resolution for image processing
+DPI = 400 # Resolution for image processing
+PDF_STANDARD_DPI = 72
+SCALE_FACTOR = DPI / PDF_STANDARD_DPI
+DEFAULT_B4_WIDTH_PT = 729

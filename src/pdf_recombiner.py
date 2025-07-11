@@ -55,9 +55,8 @@ def recombine_pdf(
     current_column = 0
     current_question_num = cfg['start_question_number']
 
-    for unit in logical_units_to_place:
-        for component in unit:
-            # ... (이미지 경로 확인 및 크기 조정 로직은 이전과 동일)
+    for unit_idx, unit in enumerate(logical_units_to_place):
+        for i, component in enumerate(unit):
             image_path = component['image_path']
             if not os.path.exists(image_path):
                 print(f"경고: 이미지를 찾을 수 없습니다. 건너뜁니다 -> {image_path}")
@@ -67,29 +66,48 @@ def recombine_pdf(
                 original_img_width, original_img_height = img.size
 
             scale_factor_from_config = cfg.get('image_scale_factor', 1.0)
-            desired_img_width = int(original_img_width * scale_factor_from_config)
-            desired_img_height = int(original_img_height * scale_factor_from_config)
             
-            max_allowed_width = column_width
-            if desired_img_width > max_allowed_width:
-                final_scale = max_allowed_width / desired_img_width
-                img_width = int(desired_img_width * final_scale)
-                img_height = int(desired_img_height * final_scale)
-            else:
-                img_width = desired_img_width
-                img_height = desired_img_height
+            # Calculate scaled image dimensions
+            def get_scaled_dimensions(img_w, img_h):
+                desired_img_width = int(img_w * scale_factor_from_config)
+                desired_img_height = int(img_h * scale_factor_from_config)
+                
+                max_allowed_width = column_width
+                if desired_img_width > max_allowed_width:
+                    final_scale = max_allowed_width / desired_img_width
+                    return int(desired_img_width * final_scale), int(desired_img_height * final_scale)
+                return desired_img_width, desired_img_height
 
-            # --- 페이지/컬럼 전환 로직 ---
-            if y_cursors[current_column] + img_height > page_height - margin:
+            img_width, img_height = get_scaled_dimensions(original_img_width, original_img_height)
+
+            # --- 페이지/컬럼 전환 로직 (Header-Passage 결합 고려) ---
+            
+            # 1. 현재 컴포넌트가 header이고, 다음에 passage가 오는지 확인
+            is_header_followed_by_passage = False
+            if component['label'] == 'header' and (i + 1) < len(unit) and unit[i + 1]['label'] == 'passage':
+                is_header_followed_by_passage = True
+
+            # 2. 공간 확인
+            required_height = img_height
+            if is_header_followed_by_passage:
+                # passage 이미지의 예상 높이 계산
+                next_comp = unit[i + 1]
+                with Image.open(next_comp['image_path']) as next_img:
+                    next_img_w, next_img_h = next_img.size
+                _, next_img_height_scaled = get_scaled_dimensions(next_img_w, next_img_h)
+                required_height += spacing + next_img_height_scaled
+
+            # 3. 공간이 부족하면 페이지/컬럼 전환
+            if y_cursors[current_column] + required_height > page_height - margin:
                 if two_column_layout and current_column == 0:
                     current_column = 1
                 else:
                     page = doc.new_page(width=page_width, height=page_height)
-                    draw_header(page) # ★★★ 새 페이지에도 머리글 그리기 ★★★
+                    draw_header(page)
                     y_cursors = [content_start_y, content_start_y] if two_column_layout else [content_start_y]
                     current_column = 0
 
-            # 이미지 삽입 및 y커서 업데이트 (이전과 동일)
+            # --- 이미지 삽입 및 y커서 업데이트 ---
             x_pos = column_x_pos[current_column]
             current_y = y_cursors[current_column]
             rect = fitz.Rect(x_pos, current_y, x_pos + img_width, current_y + img_height)
