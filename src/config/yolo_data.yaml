@@ -1,0 +1,13 @@
+path: C:/Users/CUBOX/1to100/data/processed/training_data
+train: images/train
+val: images/val
+test: images/test
+
+nc: 6
+names:
+  0: header
+  1: passage
+  2: question_block
+  3: question_number
+  4: figure
+  5: footer

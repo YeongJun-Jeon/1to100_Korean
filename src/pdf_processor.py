@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 import os
+import shutil
 
 def convert_pdfs_to_pngs():
     """
@@ -10,10 +11,12 @@ def convert_pdfs_to_pngs():
     input_dir = os.path.join(project_root, 'data', 'raw')
     output_dir = os.path.join(project_root, 'data', 'processed', 'images')
 
-    # Create the output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"Created directory: {output_dir}")
+    # Create or clear the output directory
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+        print(f"Cleared existing directory: {output_dir}")
+    os.makedirs(output_dir)
+    print(f"Created directory: {output_dir}")
 
     # Get a list of PDF files in the input directory
     try:
@@ -41,7 +44,7 @@ def convert_pdfs_to_pngs():
             
             # Render page to an image (pixmap) with higher DPI
             # 400 DPI (400 / 72 = 5.55...)
-            zoom = 400 / 72 # 원하는 DPI / 기본 DPI (72)
+            zoom = 72 / 72 # 원하는 DPI / 기본 DPI (72)
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat) # DPI 설정 적용
             
