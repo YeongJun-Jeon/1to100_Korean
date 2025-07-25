@@ -1,6 +1,6 @@
 # 프로젝트 진행 상황 요약
 
-**작성일:** 2025년 7월 10일
+**작성일:** 2025년 7월 25일
 
 ## 1. Git 및 프로젝트 초기 설정 완료
 
@@ -45,3 +45,18 @@
     *   **논리적 단위 그룹핑 및 순서 문제**: `header` - `passage` - `question_block` 간의 의미론적 계층 구조가 올바르게 유지되지 않고, `question_block`이 잘못된 `header-passage` 묶음에 할당되거나 순서가 뒤섞이는 문제 발생. (예: `header1 - questionbox1_1 - passage1 - questionbox1_2 - questionbox2_2 - questionbox2_1 - header2 - questionbox2_3`와 같은 비정상적인 순서).
     *   **이미지 크롭 기능 회귀**: 최근 코드 수정으로 인해 이미지 크롭 기능이 다시 제대로 작동하지 않는 문제 발생. (`_crop_and_create_component` 함수로의 `mask_bboxes` 전달 방식 오류로 추정).
 *   **다음 단계:** `src/annotation_processor.py`의 논리적 단위 그룹핑 로직을 재검토하고, 이미지 크롭 기능의 회귀를 해결하는 데 집중할 예정입니다.
+
+
+## 2025년 7월 25일 진행 상황 요약
+
+### 주요 개선 및 해결된 문제:
+
+*   **전체 파이프라인 통합:** PDF 변환, YOLOv8 추론 및 어노테이션 JSON 생성, 어노테이션 처리 및 이미지 크롭, 논리적 단위 셔플, PDF 재조합의 모든 과정을 `src/main.py` 스크립트 하나로 실행할 수 있도록 통합했습니다.
+*   **DPI 및 크롭 문제 해결:** `config.py`의 DPI 설정을 72로 통일하고, `annotation_processor.py`에서 바운딩 박스 좌표를 `round()` 함수를 사용하여 올바르게 스케일링 및 정수 변환하도록 수정하여 이미지 크롭 시 발생하던 "검은색 처리" 및 "날리는 부분" 문제를 해결했습니다. (사용자 확인: "크롭 완벽해 100점!")
+*   **2단 레이아웃 정렬 개선:** `annotation_processor.py`에서 2단 레이아웃의 논리적 순서(페이지 -> 컬럼 -> Y좌표)를 반영하여 어노테이션을 정렬하도록 수정했습니다.
+*   **모듈 임포트 및 `Config` 클래스 적용:** `main.py`, `pdf_processor.py`, `annotation_processor.py` 등 여러 파일에서 발생하던 `ImportError` 및 `AttributeError`를 해결하고, `Config` 클래스를 통해 설정을 일관되게 관리하도록 구조를 개선했습니다.
+*   **YOLOv8 추론 임계값 조정:** YOLOv8 추론 시 `conf=0.3` 임계값을 적용하여 오탐을 줄였습니다.
+
+### 현재 남은 과제:
+
+*   **논리적 단위 그룹화 및 셔플 로직 개선:** `header` - `passage` - `question_block` 간의 의미론적 계층 구조가 올바르게 유지되지 않고, `question_block`이 잘못된 `header-passage` 묶음에 할당되거나 순서가 뒤섞이는 문제 (특히 `text_content`가 비어있는 상황에서 이미지의 공간적 관계만을 이용한 그룹화 로직 정교화)는 추가적인 개선이 필요합니다.

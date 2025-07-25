@@ -1,14 +1,16 @@
 import fitz  # PyMuPDF
 import os
 import shutil
+from src.config import Config
 
 def convert_pdfs_to_pngs():
     """
     Converts all PDF files in the input directory to PNG images, page by page.
     """
     # Correctly resolve paths relative to the script's location or project root
+    config = Config()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    input_dir = os.path.join(project_root, 'data', 'raw')
+    input_dir = os.path.join(project_root, 'data', 'raw_0725')
     output_dir = os.path.join(project_root, 'data', 'processed', 'images')
 
     # Create or clear the output directory
@@ -44,7 +46,7 @@ def convert_pdfs_to_pngs():
             
             # Render page to an image (pixmap) with higher DPI
             # 400 DPI (400 / 72 = 5.55...)
-            zoom = 72 / 72 # 원하는 DPI / 기본 DPI (72)
+            zoom = config.DPI / config.PDF_STANDARD_DPI # 원하는 DPI / 기본 DPI (72)
             mat = fitz.Matrix(zoom, zoom)
             pix = page.get_pixmap(matrix=mat) # DPI 설정 적용
             
