@@ -1,5 +1,5 @@
 import fitz  # PyMuPDF
-from PIL import Image, ImageDraw
+from PIL import Image
 import os
 import json
 from typing import List, Dict, Any
@@ -7,21 +7,13 @@ from typing import List, Dict, Any
 Component = Dict[str, Any]
 LogicalUnit = List[Component]
 
-PALETTE = {
-    "header": (0, 0, 255),
-    "passage": (0, 150, 0),
-    "question_block": (220, 0, 0),
-    "attachment": (120, 0, 200),
-    "other": (120, 120, 120),
-}
-
 def recombine_pdf(
     output_pdf_path: str,
     logical_units_to_place: List[LogicalUnit],
     cfg: Dict[str, Any]
 ):
     """
-    재조합 + 항상 배치 맵(JSON) + placement_debug PNGs 생성.
+    재조합 + 항상 배치 맵(JSON) 생성.
     """
     placement_map = {"pages": [], "output_pdf": os.path.abspath(output_pdf_path)}
 
@@ -166,7 +158,6 @@ def recombine_pdf(
                     "h": float(ah)
                 })
 
-    # divider
     if two_column_layout and column_line_width > 0:
         for p in doc:
             center_x = page_width / 2
@@ -174,7 +165,6 @@ def recombine_pdf(
                         fitz.Point(center_x, page_height - margin),
                         color=(0, 0, 0), width=column_line_width)
 
-    # save pdf + placement
     doc.save(output_pdf_path)
     doc.close()
     json_path = os.path.splitext(output_pdf_path)[0] + "_placement.json"
@@ -182,22 +172,3 @@ def recombine_pdf(
         json.dump(placement_map, f, ensure_ascii=False, indent=2)
     print(f"\nPDF 재조합 완료: {output_pdf_path}")
     print(f"배치 맵 JSON: {json_path}")
-
-    # --- placement debug PNGs ---
-    dbg_dir = os.path.splitext(output_pdf_path)[0] + "_placement_debug"
-    os.makedirs(dbg_dir, exist_ok=True)
-    for page_entry in placement_map["pages"]:
-        pid = page_entry["page_id"]
-        canvas = Image.new("RGB", (int(page_width), int(page_height)), (255,255,255))
-        draw = ImageDraw.Draw(canvas)
-        for it in page_entry["items"]:
-            color = PALETTE.get(it["type"], PALETTE["other"])
-            x, y, w, h = it["x"], it["y"], it["w"], it["h"]
-            draw.rectangle([x, y, x+w, y+h], outline=color, width=2)
-            label = it["type"]
-            if "question_number" in it:
-                label += f" #{it['question_number']}"
-            draw.text((x+4, max(0, y-14)), label, fill=color)
-        out_img = os.path.join(dbg_dir, f"page_{pid:03d}_placement.png")
-        canvas.save(out_img)
-    print(f"배치 디버그 이미지 폴더: {dbg_dir}")

@@ -64,12 +64,10 @@ def _center(b):
 def _distance(p, q):
     return ((p[0]-q[0])**2 + (p[1]-q[1])**2) ** 0.5
 
-def _merge_adjacent_blocks(blocks: List[Dict[str, Any]], x_overlap_ratio=0.6, max_vgap_px=80,
-                           merge_trace: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+def _merge_adjacent_blocks(blocks: List[Dict[str, Any]], x_overlap_ratio=0.6, max_vgap_px=80) -> List[Dict[str, Any]]:
     merged = []
     for b in blocks:
         if not merged:
-            b['_merge_id'] = len(merged)
             merged.append(b); continue
         last = merged[-1]
         left = max(last['bbox'][0], b['bbox'][0])
@@ -77,25 +75,17 @@ def _merge_adjacent_blocks(blocks: List[Dict[str, Any]], x_overlap_ratio=0.6, ma
         overlap_w = max(0.0, right - left)
         width_ref = max(last['bbox'][2]-last['bbox'][0], 1.0)
         vgap = b['bbox'][1] - last['bbox'][3]
-        decision = (overlap_w / width_ref >= x_overlap_ratio) and (0 <= vgap <= max_vgap_px)
-        if decision:
+        if (overlap_w / width_ref >= x_overlap_ratio) and (0 <= vgap <= max_vgap_px):
             new_bbox = (
                 min(last['bbox'][0], b['bbox'][0]),
                 min(last['bbox'][1], b['bbox'][1]),
                 max(last['bbox'][2], b['bbox'][2]),
                 max(last['bbox'][3], b['bbox'][3]),
             )
-            if merge_trace is not None:
-                merge_trace.append({
-                    "merge": {"from": last.get('_merge_id', -1), "with": len(merged)},
-                    "x_overlap_ratio": overlap_w/width_ref if width_ref else 0.0,
-                    "vgap": vgap
-                })
             children = last.get('children', []) + b.get('children', [])
             attachments = last.get('attachments', []) + b.get('attachments', [])
             last.update({'bbox': new_bbox, 'children': children, 'attachments': attachments})
         else:
-            b['_merge_id'] = len(merged)
             merged.append(b)
     return merged
 
@@ -105,12 +95,12 @@ def _draw_boxes(image_path: str, annos: List[Dict[str, Any]], outfile: str, titl
     except Exception:
         return
     draw = ImageDraw.Draw(im)
-    for idx, a in enumerate(annos):
+    for a in annos:
         bbox = a["bbox"]
         label = a["label"]
         color = PALETTE.get(label, (0,0,0))
         draw.rectangle(bbox, outline=color, width=2)
-        txt = f"{label[:10]}#{idx}"
+        txt = f"{label}"
         tag_h = 16
         draw.rectangle((bbox[0], max(0, bbox[1]-tag_h), bbox[0]+8*len(txt), bbox[1]), fill=color)
     if title:
@@ -119,13 +109,14 @@ def _draw_boxes(image_path: str, annos: List[Dict[str, Any]], outfile: str, titl
 
 def process_annotations_from_json(json_file_path: str, base_output_dir: str, config: Config) -> List[LogicalUnit]:
     """
-    디버그 산출물 + 의사결정 근거를 JSON으로 남깁니다.
+    항상 디버그 산출물을 기록: annotation_debug_report.json, logical_units.json, page_XXX_filtered.png
     """
     with open(json_file_path, 'r', encoding='utf-8') as f:
         pages = json.load(f)
 
     os.makedirs(base_output_dir, exist_ok=True)
 
+    # deterministic debug folder: <config.PROCESSED_DATA_DIR>/debug  (fallback to base_output_dir/../debug)
     processed_dir = getattr(config, "PROCESSED_DATA_DIR", None)
     if processed_dir:
         debug_root = os.path.join(processed_dir, "debug")
@@ -137,7 +128,10 @@ def process_annotations_from_json(json_file_path: str, base_output_dir: str, con
         "pages": [],
         "totals": {"input_boxes": 0, "after_filter": 0, "question_numbers_attached": 0, "question_numbers_orphan": 0,
                    "figures_attached": 0, "logical_units": 0},
-        "paths": {"debug_dir": os.path.abspath(debug_root), "cropped_dir": os.path.abspath(base_output_dir)}
+        "paths": {
+            "debug_dir": os.path.abspath(debug_root),
+            "cropped_dir": os.path.abspath(base_output_dir)
+        }
     }
 
     processed_pages: List[List[Dict[str, Any]]] = []
@@ -161,10 +155,7 @@ def process_annotations_from_json(json_file_path: str, base_output_dir: str, con
             "numbers_attached": 0,
             "numbers_orphan": 0,
             "figures_attached": 0,
-            "label_counts": {},
-            "column_assignment": [],
-            "number_mapping_trace": [],
-            "merge_trace": []
+            "label_counts": {}
         }
 
         # 1) filter
@@ -198,12 +189,12 @@ def process_annotations_from_json(json_file_path: str, base_output_dir: str, con
             filtered.extend(keep)
             page_report["label_counts"][lbl] = len(keep)
 
-        # 3) merge split qbs with trace
+        # 3) merge split qbs
         qbs = [a for a in filtered if a["label"]=="question_block"]
         others = [a for a in filtered if a["label"]!="question_block"]
         before = len(qbs)
         qbs = sorted(qbs, key=lambda x: (x["bbox"][1], x["bbox"][0]))
-        qbs = _merge_adjacent_blocks(qbs, x_overlap_ratio=0.6, max_vgap_px=int(img_h*0.03), merge_trace=page_report["merge_trace"])
+        qbs = _merge_adjacent_blocks(qbs, x_overlap_ratio=0.6, max_vgap_px=int(img_h*0.03))
         page_report["merged_qb_count"] = before - len(qbs)
         filtered = qbs + others
 
@@ -219,53 +210,34 @@ def process_annotations_from_json(json_file_path: str, base_output_dir: str, con
             page_report["kmeans_used"] = False
             page_report["column_threshold"] = threshold_x
 
-        for idx, a in enumerate(filtered):
+        for a in filtered:
             xc = (a["bbox"][0]+a["bbox"][2])/2.0
             a["column"] = 0 if xc < threshold_x else 1
-            page_report["column_assignment"].append({"idx": idx, "label": a["label"], "xc": xc, "column": a["column"]})
 
-        # 5) number→block with trace
+        # 5) number→block
         blocks = [a for a in filtered if a["label"]=="question_block"]
         numbers = [a for a in filtered if a["label"]=="question_number"]
-        for i, b in enumerate(blocks):
+        for b in blocks:
             b["children"] = []
             b["attachments"] = []
-            b["_tmp_block_id"] = i
         attached = 0
         for qn in numbers:
             qn_center = _center(qn["bbox"])
-            method = "none"
             candidate = None
             for b in blocks:
                 if _point_in_bbox(qn_center, b["bbox"]):
-                    candidate = b; method = "containment"; break
-            dist_val = None
+                    candidate = b; break
             if candidate is None:
                 same_col = [b for b in blocks if b["column"]==qn["column"]]
                 cands = same_col if same_col else blocks
                 if cands:
-                    scored = [(b, _distance(_center(b["bbox"]), qn_center)) for b in cands]
-                    scored.sort(key=lambda x: x[1])
-                    if scored and scored[0][1] <= max(img_h*0.1, 120):
-                        candidate = scored[0][0]
-                        method = "nearest"
-                        dist_val = scored[0][1]
+                    dists = [(b, _distance(_center(b["bbox"]), qn_center)) for b in cands]
+                    dists.sort(key=lambda x: x[1])
+                    if dists and dists[0][1] <= max(img_h*0.1, 120):
+                        candidate = dists[0][0]
             if candidate:
                 candidate["children"].append(qn)
                 attached += 1
-                page_report["number_mapping_trace"].append({
-                    "qn_bbox": list(map(float, qn["bbox"])),
-                    "mapped_block_id": candidate["_tmp_block_id"],
-                    "method": method,
-                    "distance": dist_val
-                })
-            else:
-                page_report["number_mapping_trace"].append({
-                    "qn_bbox": list(map(float, qn["bbox"])),
-                    "mapped_block_id": None,
-                    "method": "orphan",
-                    "distance": None
-                })
         page_report["numbers_attached"] = attached
         page_report["numbers_orphan"] = max(0, len(numbers) - attached)
 
@@ -370,7 +342,7 @@ def process_annotations_from_json(json_file_path: str, base_output_dir: str, con
     if current_unit:
         logical_units.append(current_unit)
 
-    # finalize report
+    # finalize report (always write)
     global_report["totals"]["input_boxes"] = sum(p["input_count"] for p in global_report["pages"])
     global_report["totals"]["after_filter"] = sum(p["after_filter_count"] for p in global_report["pages"])
     global_report["totals"]["question_numbers_attached"] = sum(p["numbers_attached"] for p in global_report["pages"])

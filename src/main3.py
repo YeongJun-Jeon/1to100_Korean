@@ -96,15 +96,6 @@ if __name__ == "__main__":
         config.CROPPED_COMPONENTS_DIR,
         config
     )
-    # Where to find debug
-    # Prefer config.PROCESSED_DATA_DIR/debug if exists else sibling of CROPPED_COMPONENTS_DIR
-    pdf_dir = os.path.dirname(config.RECOMBINED_PDF_OUTPUT_PATH)
-    debug_dir = os.path.join(pdf_dir, "debug")
-    print(f"디버그 리포트/시각화 폴더: {os.path.abspath(debug_dir)}")
-    print(f" - annotation_debug_report.json")
-    print(f" - logical_units.json")
-    print(f" - page_XXX_filtered.png ...")
-    print(f"크롭 이미지 폴더: {os.path.abspath(config.CROPPED_COMPONENTS_DIR)}")
     print(f"-> {len(logical_units)}개의 논리적 단위를 생성했습니다.")
 
     # --- Step 3: Shuffle Logical Units ---
@@ -133,8 +124,4 @@ if __name__ == "__main__":
         }
     )
 
-    pdf_path = os.path.abspath(config.RECOMBINED_PDF_OUTPUT_PATH)
-    placement_json = os.path.splitext(pdf_path)[0] + "_placement.json"
     print("\n모든 작업이 완료되었습니다.")
-    print(f"- 최종 PDF: {pdf_path}")
-    print(f"- 배치 맵 JSON: {placement_json}")
