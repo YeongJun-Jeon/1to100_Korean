@@ -1,50 +1,42 @@
 import os
 import json
 import glob
-import subprocess
-import sys
+import shutil
+from typing import Dict, Any, List, Optional
+
 from PIL import Image
-from typing import Dict, Any, List
 from ultralytics import YOLO
 
 from src.annotation_processor import process_annotations_from_json
 from src.layout_organizer import shuffle_logical_units
 from src.pdf_recombiner import recombine_pdf
+from src.pdf_processor import convert_pdfs_to_pngs
 from src.config import Config
 
-if __name__ == "__main__":
+
+def run_pipeline(input_pdf_path: Optional[str] = None) -> str:
+    """주어진 PDF를 셔플하여 새로운 PDF로 저장합니다."""
     print("스크립트 실행 시작")
 
     config = Config()
 
-    # --- Step 0: PDF to PNG Conversion (using pdf_processor.py) ---
+    # --- Step 0: PDF to PNG Conversion ---
+    if input_pdf_path:
+        raw_dir = os.path.join(config.PROJECT_ROOT, "data", "raw_0725")
+        os.makedirs(raw_dir, exist_ok=True)
+        for f in os.listdir(raw_dir):
+            os.remove(os.path.join(raw_dir, f))
+        shutil.copy(input_pdf_path, os.path.join(raw_dir, os.path.basename(input_pdf_path)))
+
     print("\n[0/4] PDF를 PNG 이미지로 변환...")
-    pdf_processor_path = os.path.join(config.PROJECT_ROOT, "src", "pdf_processor.py")
-
-    # (옵션) 입력 경로 스왑: 필요 시만 사용
-    with open(pdf_processor_path, 'r', encoding='utf-8') as f:
-        pdf_processor_content = f.read()
-
-    modified_pdf_processor_content = pdf_processor_content.replace(
-        "input_dir = os.path.join(project_root, 'data', 'raw')",
-        "input_dir = os.path.join(project_root, 'data', 'raw_0725')"
-    )
-
-    with open(pdf_processor_path, 'w', encoding='utf-8') as f:
-        f.write(modified_pdf_processor_content)
-
-    subprocess.run([sys.executable, '-m', 'src.pdf_processor'], check=True)
-
-    # revert
-    with open(pdf_processor_path, 'w', encoding='utf-8') as f:
-        f.write(pdf_processor_content)
+    convert_pdfs_to_pngs()
     print("PDF to PNG conversion complete.")
 
     # --- Step 1: YOLOv8 Inference and Annotation JSON Generation ---
     print("\n[1/4] YOLOv8 추론 및 어노테이션 JSON 생성...")
     model = YOLO(config.YOLO_MODEL_PATH)
 
-    all_image_annotations = []
+    all_image_annotations: List[Dict[str, Any]] = []
     image_files = glob.glob(os.path.join(config.IMAGE_DIR, '**', '*.png'), recursive=True) + \
                   glob.glob(os.path.join(config.IMAGE_DIR, '**', '*.jpg'), recursive=True) + \
                   glob.glob(os.path.join(config.IMAGE_DIR, '**', '*.jpeg'), recursive=True)
@@ -78,7 +70,7 @@ if __name__ == "__main__":
                         "label": label,
                         "bbox": [x_min, y_min, x_max, y_max],
                         "confidence": float(conf),
-                        "text_content": ""
+                        "text_content": "",
                     }
                     image_annotations["annotations"].append(annotation)
 
@@ -96,8 +88,6 @@ if __name__ == "__main__":
         config.CROPPED_COMPONENTS_DIR,
         config
     )
-    # Where to find debug
-    # Prefer config.PROCESSED_DATA_DIR/debug if exists else sibling of CROPPED_COMPONENTS_DIR
     pdf_dir = os.path.dirname(config.RECOMBINED_PDF_OUTPUT_PATH)
     debug_dir = os.path.join(pdf_dir, "debug")
     print(f"디버그 리포트/시각화 폴더: {os.path.abspath(debug_dir)}")
@@ -125,7 +115,7 @@ if __name__ == "__main__":
             "header_line_width": 0.5,
             "two_column_layout": True,
             "column_line_width": 0.5,
-            "image_scale_factor": 1.0,  # 크롭은 픽셀 기반, 재조합에서 폭 맞춰 스케일
+            "image_scale_factor": 1.0,
             "start_question_number": 1,
             "question_number_font_size": 12,
             "question_number_offset_x": 10,
@@ -138,3 +128,14 @@ if __name__ == "__main__":
     print("\n모든 작업이 완료되었습니다.")
     print(f"- 최종 PDF: {pdf_path}")
     print(f"- 배치 맵 JSON: {placement_json}")
+    return pdf_path
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="PDF 셔플 파이프라인 실행")
+    parser.add_argument("--pdf", type=str, help="입력 PDF 파일 경로")
+    args = parser.parse_args()
+    run_pipeline(args.pdf)
+
