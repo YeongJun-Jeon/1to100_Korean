@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     # --- Step 3: Shuffle Logical Units ---
     print("\n[3/4] 논리적 단위 셔플하기...")
-    shuffled_units = shuffle_logical_units(logical_units, seed=42)
+    shuffled_units = shuffle_logical_units(logical_units)
     print(f"-> {len(shuffled_units)}개의 유닛을 셔플했습니다.")
 
     # --- Step 4: Recombine PDF ---

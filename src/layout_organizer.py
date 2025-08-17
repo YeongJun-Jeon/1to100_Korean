@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 Component = Dict[str, Any]
 LogicalUnit = List[Component]
 
-def shuffle_logical_units(logical_units: List[LogicalUnit], seed: int = 42) -> List[LogicalUnit]:
+def shuffle_logical_units(logical_units: List[LogicalUnit], seed: int | None = None) -> List[LogicalUnit]:
     """
     '문제 세트' 단위로 1차 셔플하고, 각 세트 내부의 'question_block'만 2차 셔플합니다.
     header/passage는 세트 선두 고정, attachments는 블록과 동반 이동합니다.

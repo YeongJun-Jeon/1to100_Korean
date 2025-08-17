@@ -130,12 +130,13 @@ def recombine_pdf(
             }
 
             if component['label'] == "question_block":
-                q_num_text = f"{current_question_num}."
-                text_pos = fitz.Point(x_pos + cfg.get('question_number_offset_x', 10),
-                                      y_pos + cfg.get('question_number_offset_y', 12))
-                page.insert_text(text_pos, q_num_text, fontsize=cfg.get('question_number_font_size', 12), color=(0, 0, 0))
-                item["question_number"] = current_question_num
-                current_question_num += 1
+                # q_num_text = f"{current_question_num}."
+                # text_pos = fitz.Point(x_pos + cfg.get('question_number_offset_x', 10),
+                #                       y_pos + cfg.get('question_number_offset_y', 12))
+                # page.insert_text(text_pos, q_num_text, fontsize=cfg.get('question_number_font_size', 12), color=(0, 0, 0))
+                # item["question_number"] = current_question_num
+                # current_question_num += 1
+                pass
 
             y_cursors[current_column] += h + spacing
             _ensure_page_entry(page)
